@@ -12,3 +12,50 @@ model EnvironmentCheck {
   message   String
   createdAt DateTime @default(now())
 }
+
+model Group {
+  id        String    @id @default(cuid())
+  name      String
+  createdAt DateTime  @default(now())
+  members   Member[]
+  expenses  Expense[]
+}
+
+model Member {
+  id           String               @id @default(cuid())
+  name         String
+  groupId      String
+  group        Group                @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdAt    DateTime             @default(now())
+  paidExpenses Expense[]            @relation("ExpensePayer")
+  shares       ExpenseParticipant[]
+
+  @@unique([groupId, name])
+  @@index([groupId])
+}
+
+/// Money is stored as integer cents to avoid floating-point error.
+model Expense {
+  id           String               @id @default(cuid())
+  groupId      String
+  group        Group                @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  description  String
+  amountCents  Int
+  payerId      String
+  payer        Member               @relation("ExpensePayer", fields: [payerId], references: [id], onDelete: Restrict)
+  createdAt    DateTime             @default(now())
+  participants ExpenseParticipant[]
+
+  @@index([groupId])
+}
+
+/// One row per participant; shareCents is computed once at recording time.
+model ExpenseParticipant {
+  expenseId  String
+  expense    Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  memberId   String
+  member     Member  @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  shareCents Int
+
+  @@id([expenseId, memberId])
+}
